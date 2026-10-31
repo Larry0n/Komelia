@@ -14,3 +14,5 @@ The tag is exactly the fork version (for example `1.0.0`) and its asset must be 
 ## Merge notes for upstream 0.20.0
 
 Upstream's MangaBaka migration occupied V13, already applied on Bigme devices for E-Ink settings. The fork retains the original V13–V15 migration files and checksums, and applies the upstream SQL unmodified as V16. Both the new MangaBaka setting and existing delay/count settings are preserved. Existing official 0.20.0 installations are not a supported in-place path; their signing identity and migration history differ. Reader series metadata changes, strings and build dependencies were merged alongside the Bigme controls.
+
+Git also reported a conflict in the Russian strings file: the upstream translation block was kept, then the nine Bigme labels were restored. No Bigme feature was intentionally removed.

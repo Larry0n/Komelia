@@ -1,6 +1,10 @@
 # Komelia - Komga media client
 
-### Downloads:
+### Bigme Android fork
+
+Download the signed arm64 APK from [this fork's releases](https://github.com/Larry0n/Komelia/releases/latest). Install the first fork-channel build manually over the earlier Bigme build; subsequent in-app updates use the same fork. See the [release guide](docs/bigme-releases.md) for building and publishing updates.
+
+### Original Komelia downloads:
 
 - Latest prebuilt release is available at https://github.com/Snd-R/Komelia/releases
 - Google Play Store https://play.google.com/store/apps/details?id=io.github.snd_r.komelia
