@@ -5,12 +5,12 @@ $repo = Split-Path -Parent $PSScriptRoot
 $cache = Join-Path $repo 'build/android-runtime'
 New-Item -ItemType Directory -Force -Path $cache | Out-Null
 
-# This fork's native bindings and EPUB readers are unchanged since upstream 0.19.0.
+# Extract native libraries and EPUB bundles from the merged upstream release.
 # Use that release's runtime only; SQLite comes from the current Gradle dependency.
-$url = 'https://github.com/Snd-R/Komelia/releases/download/0.19.0/Komelia-0.19.0-android-universal.apk'
-$expectedHash = 'F3FE2B2AD9C53F63A852FC54C9808E93A1F3AFE58320724E387128F3C8D8F4A3'
+$url = 'https://github.com/Snd-R/Komelia/releases/download/0.20.0/Komelia-0.20.0-android-universal.apk'
+$expectedHash = '12B3E79F889D3CCAFD3F9F7C15F0838C08A431892BDF5A7DBDD68EE541FCF3A7'
 if (-not $ApkPath) {
-    $ApkPath = Join-Path $cache 'Komelia-0.19.0-android-universal.apk'
+    $ApkPath = Join-Path $cache 'Komelia-0.20.0-android-universal.apk'
     if (-not (Test-Path -LiteralPath $ApkPath)) {
         & curl.exe --fail --location --output $ApkPath $url
         if ($LASTEXITCODE -ne 0) { throw 'Could not download the upstream Android runtime.' }
@@ -44,4 +44,4 @@ try {
 } finally {
     $zip.Dispose()
 }
-Write-Output "Prepared $count runtime files from upstream Komelia 0.19.0 (SHA-256 verified)."
+Write-Output "Prepared $count runtime files from upstream Komelia 0.20.0 (SHA-256 verified)."

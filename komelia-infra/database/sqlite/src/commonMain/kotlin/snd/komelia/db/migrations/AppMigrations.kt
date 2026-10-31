@@ -19,7 +19,10 @@ class AppMigrations : MigrationResourcesProvider() {
         "V10__komf_settings.sql",
         "V11__home_filters.sql",
         "V12__offline_mode.sql",
-        "V13__komf_mangabaka.sql",
+        "V13__hardware_eink_refresh.sql",
+        "V14__hardware_eink_refresh_delay.sql",
+        "V15__hardware_eink_refresh_count.sql",
+        "V16__komf_mangabaka.sql",
     )
 
     override suspend fun getMigration(name: String): ByteArray? {

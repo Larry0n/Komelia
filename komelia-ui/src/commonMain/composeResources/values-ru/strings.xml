@@ -65,4 +65,13 @@
     <string name="library_auto_identify">Автоопределение (Komf)</string>
     <string name="library_reset_metadata">Сбросить метаданные (Komf)</string>
     <string name="library_all_libraries">Все библиотеки</string>
+    <string name="reader_eink_hardware">Аппаратное обновление E-Ink</string>
+    <string name="reader_eink_hardware_description">Обновление после смены страницы, масштабирования и перемещения. Заменяет программную вспышку.</string>
+    <string name="reader_eink_hardware_unavailable">Аппаратное обновление недоступно. Можно использовать программную вспышку. Для повторной проверки перезапустите приложение.</string>
+    <string name="reader_eink_mode_diagnostic">Ручное обновление соответствует системному жесту на Bigme S6 Color+. Применяется после следующей смены страницы или жеста.</string>
+    <string name="reader_eink_mode_manual">Ручное обновление (4)</string>
+    <string name="reader_eink_delay">Задержка обновления</string>
+    <string name="reader_eink_count">Полных обновлений</string>
+    <string name="reader_eink_delay_ms">%1$d мс</string>
+    <string name="reader_eink_mode_system">Системная перерисовка (0)</string>
 </resources>
