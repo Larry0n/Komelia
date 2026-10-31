@@ -25,7 +25,7 @@ class AndroidAppUpdater(
     private var inProgress = AtomicBoolean(false)
 
     override suspend fun getReleases(): List<AppRelease> {
-        return githubClient.getKomeliaReleases().map { it.toAppRelease() }
+        return githubClient.getKomeliaReleases().map { it.toAppRelease() }.filter { it.assetUrl != null }
     }
 
     override suspend fun updateToLatest(): Flow<UpdateProgress>? {
@@ -34,8 +34,7 @@ class AndroidAppUpdater(
     }
 
     override fun updateTo(release: AppRelease): Flow<UpdateProgress>? {
-        if (!inProgress.compareAndSet(false, true)) return null
-        if (release.assetUrl == null) return null
+        if (release.assetUrl == null || !inProgress.compareAndSet(false, true)) return null
 
         return flow {
             emit(UpdateProgress(0, 0))
@@ -83,7 +82,9 @@ class AndroidAppUpdater(
     }
 
     private fun GithubRelease.toAppRelease(): AppRelease {
-        val asset = assets.firstOrNull { it.name.endsWith(".apk") }
+        val asset = assets.firstOrNull {
+            "arm64-v8a" in Build.SUPPORTED_ABIS && it.name == "Komelia-Bigme-$tagName-arm64-v8a.apk"
+        }
 
         return AppRelease(
             version = AppVersion.fromString(tagName),

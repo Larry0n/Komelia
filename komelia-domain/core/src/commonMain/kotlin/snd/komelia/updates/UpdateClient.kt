@@ -8,7 +8,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.time.Instant
 
-private const val komeliaBaseUrl = "https://api.github.com/repos/Snd-R/Komelia"
+private const val komeliaBaseUrl = "https://api.github.com/repos/Larry0n/Komelia"
 private const val onnxRuntimeBaseUrl = "https://api.github.com/repos/microsoft/onnxruntime"
 
 class UpdateClient(
@@ -19,7 +19,7 @@ class UpdateClient(
     suspend fun getKomeliaReleases(): List<GithubRelease> {
         return ktor.get("$komeliaBaseUrl/releases") {
             parameter("per_page", 5)
-        }.body()
+        }.body<List<GithubRelease>>().filter { !it.prerelease && it.tagName.matches(Regex("""[0-9]+\.[0-9]+\.[0-9]+""")) }
     }
 
     suspend fun getKomeliaLatestRelease(): GithubRelease {
@@ -38,6 +38,7 @@ class UpdateClient(
 @Serializable
 data class GithubRelease(
     val id: Int,
+    val prerelease: Boolean = false,
     @SerialName("published_at")
     val publishedAt: Instant,
     @SerialName("tag_name")

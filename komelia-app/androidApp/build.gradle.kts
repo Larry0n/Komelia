@@ -75,8 +75,8 @@ android {
         applicationId = "io.github.snd_r.komelia"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = libs.versions.android.versionCode.get().toInt()
-        versionName = libs.versions.app.version.get()
+        versionCode = providers.gradleProperty("bigmeVersionCode").get().toInt()
+        versionName = providers.gradleProperty("bigmeVersion").get()
         ndk { abiFilters += androidAbis }
 
         val enableSelfUpdates = when (androidVariant) {

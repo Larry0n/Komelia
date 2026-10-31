@@ -12,7 +12,23 @@ plugins {
 group = "io.github.snd-r.komelia.domain.core"
 version = "unspecified"
 
+val forkVersion = providers.gradleProperty("bigmeVersion")
+val versionSources = layout.buildDirectory.dir("generated/bigmeVersion")
+val generateBigmeVersion by tasks.registering {
+    inputs.property("version", forkVersion)
+    outputs.dir(versionSources)
+    doLast {
+        val value = forkVersion.get()
+        require(value.matches(Regex("""[0-9]+\.[0-9]+\.[0-9]+""")))
+        versionSources.get().file("BigmeVersion.kt").asFile.apply {
+            parentFile.mkdirs()
+            writeText("package snd.komelia.updates\ninternal const val bigmeVersion = \"$value\"\n")
+        }
+    }
+}
+
 kotlin {
+    sourceSets.commonMain { kotlin.srcDir(generateBigmeVersion) }
     android {
         namespace = "io.github.snd_r.komelia.domain.core"
         compileSdk = libs.versions.android.compileSdk.get().toInt()
