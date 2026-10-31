@@ -50,6 +50,10 @@ class ScreenScaleState {
     val scrollReversed = MutableStateFlow(false)
     private val scrollState = MutableStateFlow<ScrollableState?>(null)
 
+    val activeAnimations = MutableStateFlow(0)
+
+    fun resetVelocityTracking() = velocityTracker.resetTracking()
+
     val transformation = MutableStateFlow(Transformation(offset = Offset.Zero, scale = 1f))
 
     @Volatile
@@ -127,53 +131,63 @@ class ScreenScaleState {
         check(coroutineScope != null)
         scrollJob?.cancel()
         scrollJob = coroutineScope.launch {
-            logger.info { "current offset $currentOffset" }
-            AnimationState(
-                typeConverter = Offset.VectorConverter,
-                initialValue = currentOffset,
-            ).animateTo(
-                targetValue = offset,
-                animationSpec = tween(durationMillis = 1000)
-            ) {
-                currentOffset = value
-                applyLimits()
+            activeAnimations.update { it + 1 }
+            try {
+                logger.info { "current offset $currentOffset" }
+                AnimationState(
+                    typeConverter = Offset.VectorConverter,
+                    initialValue = currentOffset,
+                ).animateTo(
+                    targetValue = offset,
+                    animationSpec = tween(durationMillis = 1000)
+                ) {
+                    currentOffset = value
+                    applyLimits()
+                }
+                logger.info { "scrolled to offset $currentOffset" }
+            } finally {
+                activeAnimations.update { it - 1 }
             }
-            logger.info { "scrolled to offset $currentOffset" }
         }
     }
 
     suspend fun performFling(spec: DecayAnimationSpec<Offset>) {
-        val scale = transformation.value.scale
-        val velocity = velocityTracker.calculateVelocity().div(scale)
-        velocityTracker.resetTracking()
+        activeAnimations.update { it + 1 }
+        try {
+            val scale = transformation.value.scale
+            val velocity = velocityTracker.calculateVelocity().div(scale)
+            velocityTracker.resetTracking()
 
-        var lastValue = Offset(0f, 0f)
-        AnimationState(
-            typeConverter = Offset.VectorConverter,
-            initialValue = Offset.Zero,
-            initialVelocity = Offset(velocity.x, velocity.y),
-        ).animateDecay(spec) {
-            val delta = value - lastValue
-            lastValue = value
+            var lastValue = Offset(0f, 0f)
+            AnimationState(
+                typeConverter = Offset.VectorConverter,
+                initialValue = Offset.Zero,
+                initialVelocity = Offset(velocity.x, velocity.y),
+            ).animateDecay(spec) {
+                val delta = value - lastValue
+                lastValue = value
 
-            if (scrollState.value == null) {
-                val canPanHorizontally = when {
-                    delta.x < 0 -> canPanLeft()
-                    delta.x > 0 -> canPanRight()
-                    else -> false
+                if (scrollState.value == null) {
+                    val canPanHorizontally = when {
+                        delta.x < 0 -> canPanLeft()
+                        delta.x > 0 -> canPanRight()
+                        else -> false
+                    }
+                    val canPanVertically = when {
+                        delta.y > 0 -> canPanDown()
+                        delta.y < 0 -> canPanUp()
+                        else -> false
+                    }
+                    if (!canPanHorizontally && !canPanVertically) {
+                        this.cancelAnimation()
+                        return@animateDecay
+                    }
                 }
-                val canPanVertically = when {
-                    delta.y > 0 -> canPanDown()
-                    delta.y < 0 -> canPanUp()
-                    else -> false
-                }
-                if (!canPanHorizontally && !canPanVertically) {
-                    this.cancelAnimation()
-                    return@animateDecay
-                }
+
+                addPan(delta)
             }
-
-            addPan(delta)
+        } finally {
+            activeAnimations.update { it - 1 }
         }
     }
 

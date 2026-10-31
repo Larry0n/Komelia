@@ -1036,4 +1036,13 @@
     <string name="error_restart">Restart</string>
     <string name="error_exit">Exit</string>
 
+    <string name="reader_eink_hardware">Hardware E-Ink refresh</string>
+    <string name="reader_eink_hardware_description">Refresh after page changes, zoom and pan finish. Replaces software flash.</string>
+    <string name="reader_eink_hardware_unavailable">Hardware refresh is unavailable. Software flash can still be used. Restart the app to retry.</string>
+    <string name="reader_eink_mode_diagnostic">Manual refresh matches the system refresh gesture on Bigme S6 Color+. Applied after the next page change or gesture.</string>
+    <string name="reader_eink_mode_manual">Manual refresh (4)</string>
+    <string name="reader_eink_delay">Refresh delay</string>
+    <string name="reader_eink_count">Full refreshes</string>
+    <string name="reader_eink_delay_ms">%1$d ms</string>
+    <string name="reader_eink_mode_system">System repaint (0)</string>
 </resources>

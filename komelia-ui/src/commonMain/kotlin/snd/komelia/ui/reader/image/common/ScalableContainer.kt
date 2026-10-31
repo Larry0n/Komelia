@@ -63,6 +63,9 @@ fun ScalableContainer(
     val flingScope = rememberCoroutineScope()
     val flingSpec = rememberSplineBasedDecay<Offset>()
     var flingInProgress by remember { mutableStateOf(false) }
+    var zoomChangedDuringGesture by remember { mutableStateOf(false) }
+    var gestureChangedContent by remember { mutableStateOf(false) }
+    val eInkRefresh by rememberUpdatedState(LocalEInkRefreshCoordinator.current)
     val scrollOrientation = scaleState.scrollOrientation.collectAsState().value ?: Vertical
     val scrollConfig = remember { platformScrollConfig() }
     val density = LocalDensity.current
@@ -78,10 +81,15 @@ fun ScalableContainer(
             .pointerInput(Unit) {
                 detectDragGestures(
                     onDragEnd = {
-                        flingScope.launch {
+                        if (eInkRefresh == null || !zoomChangedDuringGesture) {
                             flingInProgress = true
-                            scaleState.performFling(flingSpec)
-                            flingInProgress = false
+                            flingScope.launch {
+                                try {
+                                    scaleState.performFling(flingSpec)
+                                } finally {
+                                    flingInProgress = false
+                                }
+                            }
                         }
                     },
                     onDrag = { _, _ -> }
@@ -90,7 +98,14 @@ fun ScalableContainer(
             }
             .pointerInput(Unit) {
                 awaitEachGesture {
-                    val down = awaitFirstDown()
+                    val hardwareRefresh = eInkRefresh != null
+                    val down = awaitFirstDown(
+                        requireUnconsumed = !hardwareRefresh,
+                        pass = if (hardwareRefresh) PointerEventPass.Initial else PointerEventPass.Main,
+                    )
+                    if (eInkRefresh != null) scaleState.resetVelocityTracking()
+                    zoomChangedDuringGesture = false
+                    gestureChangedContent = false
                     if (flingInProgress) {
                         flingScope.coroutineContext.cancelChildren()
                         flingInProgress = false
@@ -100,12 +115,21 @@ fun ScalableContainer(
 
             }
             .pointerInput(areaSize) {
-                detectTransformGestures { event, centroid, pan, zoom, _ ->
+                detectTransformGestures(
+                    onGestureEnd = { _, _ ->
+                        // This request joins the same pending refresh as fling/painter updates.
+                        // The raw touch observer and activeAnimations still gate execution.
+                        if (gestureChangedContent) eInkRefresh?.requestRefresh()
+                    }
+                ) { event, centroid, pan, zoom, _ ->
+                    val before = scaleState.transformation.value
                     if (zoom != 1.0f) {
                         scaleState.multiplyZoom(zoom, centroid - areaCenter)
+                        zoomChangedDuringGesture = zoomChangedDuringGesture || before != scaleState.transformation.value
                     } else {
                         scaleState.addPan(event, pan)
                     }
+                    gestureChangedContent = gestureChangedContent || before != scaleState.transformation.value
                 }
             }
             .onPointerEvent(PointerEventType.Scroll) { event ->

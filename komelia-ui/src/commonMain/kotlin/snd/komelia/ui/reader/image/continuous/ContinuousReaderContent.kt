@@ -56,6 +56,7 @@ import snd.komelia.settings.model.ContinuousReadingDirection.TOP_TO_BOTTOM
 import snd.komelia.ui.reader.image.PageMetadata
 import snd.komelia.ui.reader.image.ScreenScaleState
 import snd.komelia.ui.reader.image.common.ContinuousReaderHelpDialog
+import snd.komelia.ui.reader.image.common.LocalEInkRefreshCoordinator
 import snd.komelia.ui.reader.image.common.ReaderControlsOverlay
 import snd.komelia.ui.reader.image.common.ReaderImageContent
 import snd.komelia.ui.reader.image.common.ScalableContainer
@@ -187,6 +188,7 @@ private fun VerticalLayout(
     pageIntervals: List<BookPagesInterval>,
     sidePadding: Dp
 ) {
+    val animateLayout = LocalEInkRefreshCoordinator.current == null
     LazyColumn(
         state = state.lazyListState,
         contentPadding = PaddingValues(start = sidePadding, end = sidePadding),
@@ -200,7 +202,7 @@ private fun VerticalLayout(
             val height = displaySize.height
             Column(
                 modifier = Modifier
-                    .animateContentSize(spring(stiffness = Spring.StiffnessVeryLow))
+                    .then(if (animateLayout) Modifier.animateContentSize(spring(stiffness = Spring.StiffnessVeryLow)) else Modifier)
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.surfaceDim)
             ) {
@@ -225,6 +227,7 @@ private fun HorizontalLayout(
     sidePadding: Dp,
     reversed: Boolean
 ) {
+    val animateLayout = LocalEInkRefreshCoordinator.current == null
     LazyRow(
         state = state.lazyListState,
         contentPadding = PaddingValues(top = sidePadding, bottom = sidePadding),
@@ -239,7 +242,7 @@ private fun HorizontalLayout(
             val width = displaySize.width
             Row(
                 Modifier
-                    .animateContentSize(spring(stiffness = Spring.StiffnessVeryLow))
+                    .then(if (animateLayout) Modifier.animateContentSize(spring(stiffness = Spring.StiffnessVeryLow)) else Modifier)
                     .fillMaxHeight()
                     .background(MaterialTheme.colorScheme.surfaceDim)
             ) {

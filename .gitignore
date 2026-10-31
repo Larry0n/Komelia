@@ -16,3 +16,14 @@ build/
 /output
 /.kotlin
 /cmake/build*
+
+# Local Android/Kotlin verification environment
+/.gradle-local/
+/.android-local/
+/.android-sdk/
+/build-check.log
+
+# Generated Android native/runtime resources (see scripts/Prepare-AndroidRuntime.ps1)
+/komelia-infra/jni/src/androidMain/jniLibs/
+/komelia-ui/src/commonMain/composeResources/files/komga.html
+/komelia-ui/src/commonMain/composeResources/files/ttsu.html

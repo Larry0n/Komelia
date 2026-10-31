@@ -4,6 +4,8 @@ import android.app.Activity
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
+import android.view.MotionEvent
 import android.webkit.WebView
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -20,6 +22,7 @@ import androidx.window.layout.WindowMetricsCalculator
 import io.github.vinceglb.filekit.FileKit
 import io.github.vinceglb.filekit.dialogs.init
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,14 +30,27 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import snd.komelia.ui.MainView
+import snd.komelia.ui.error.ErrorView
 import snd.komelia.ui.platform.PlatformType
 import snd.komelia.ui.platform.WindowSizeClass
+import snd.komelia.ui.platform.AndroidWindowInputState
 
 private val initScope = CoroutineScope(Dispatchers.Default)
 private val initMutex = Mutex()
 private val mainActivity = MutableStateFlow<MainActivity?>(null)
 
 class MainActivity : AppCompatActivity() {
+    private val startupError = MutableStateFlow<Throwable?>(null)
+
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        AndroidWindowInputState.onTouchEvent(event)
+        return super.dispatchTouchEvent(event)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        AndroidWindowInputState.reset()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,12 +61,19 @@ class MainActivity : AppCompatActivity() {
         initScope.launch {
             initMutex.withLock {
                 if (dependencies.value == null) {
-                    val module = AndroidAppModule(
-                        context = applicationContext,
-                        mainActivity = mainActivity
-                    )
-                    val deps = module.initDependencies()
-                    dependencies.value = deps
+                    try {
+                        val module = AndroidAppModule(
+                            context = applicationContext,
+                            mainActivity = mainActivity
+                        )
+                        dependencies.value = module.initDependencies()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        reportStartupError(e)
+                    } catch (e: LinkageError) {
+                        reportStartupError(e)
+                    }
                 }
             }
         }
@@ -63,6 +86,11 @@ class MainActivity : AppCompatActivity() {
         }
 
         setContent {
+            val error = startupError.collectAsState().value
+            if (error != null) {
+                ErrorView(error, onRestart = { recreate() }, onExit = { finishAndRemoveTask() })
+                return@setContent
+            }
             val windowSize = rememberWindowSize()
             MainView(
                 dependencies = dependencies.collectAsState().value,
@@ -72,6 +100,11 @@ class MainActivity : AppCompatActivity() {
                 keyEvents = MutableSharedFlow()
             )
         }
+    }
+
+    private fun reportStartupError(error: Throwable) {
+        Log.e("KomeliaStartup", "Application initialization failed", error)
+        startupError.value = error
     }
 }
 

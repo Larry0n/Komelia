@@ -1,3 +1,4 @@
+import com.android.build.api.variant.KotlinMultiplatformAndroidComponentsExtension
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -53,38 +54,40 @@ kotlin {
 
 val sqliteExtract: Configuration by configurations.creating
 dependencies { sqliteExtract(libs.sqlite.xerial.jdbc) }
-tasks.register<Sync>("android-arm64-ExtractSqliteLib") {
-    val sqliteJar = configurations.getByName("sqliteExtract").first()
-    val file = zipTree(sqliteJar.absolutePath)
-        .matching { include("org/sqlite/native/Linux-Android/aarch64/libsqlitejdbc.so") }
-        .singleFile
-    from(file)
-    into("$projectDir/src/androidMain/jniLibs/arm64-v8a")
+
+// Android cannot load the .so directly from the JDBC jar. Generate a JNI source
+// directory and wire its producer into every Android build, including assembleDebug.
+abstract class ExtractAndroidSqlite : Sync() {
+    @get:OutputDirectory
+    abstract val outputDirectory: DirectoryProperty
 }
 
-tasks.register<Sync>("android-armv7a-ExtractSqliteLib") {
-    val sqliteJar = configurations.getByName("sqliteExtract").first()
-    val file = zipTree(sqliteJar.absolutePath)
-        .matching { include("org/sqlite/native/Linux-Android/arm/libsqlitejdbc.so") }
-        .singleFile
-    from(file)
-    into("$projectDir/src/androidMain/jniLibs/armeabi-v7a")
+val extractAndroidSqlite = tasks.register<ExtractAndroidSqlite>("extractAndroidSqlite") {
+    outputDirectory.set(layout.buildDirectory.dir("generated/androidSqliteJni"))
+    from(provider { zipTree(sqliteExtract.singleFile) }) {
+        include("org/sqlite/native/Linux-Android/*/libsqlitejdbc.so")
+        eachFile {
+            val abi = when (relativePath.segments[4]) {
+                "aarch64" -> "arm64-v8a"
+                "arm" -> "armeabi-v7a"
+                "x86_64" -> "x86_64"
+                "x86" -> "x86"
+                else -> error("Unsupported SQLite Android architecture: $path")
+            }
+            relativePath = RelativePath(true, abi, name)
+        }
+        includeEmptyDirs = false
+    }
+    into(outputDirectory)
 }
 
-tasks.register<Sync>("android-x86_64-ExtractSqliteLib") {
-    val sqliteJar = configurations.getByName("sqliteExtract").first()
-    val file = zipTree(sqliteJar.absolutePath)
-        .matching { include("org/sqlite/native/Linux-Android/x86_64/libsqlitejdbc.so") }
-        .singleFile
-    from(file)
-    into("$projectDir/src/androidMain/jniLibs/x86_64")
+extensions.configure<KotlinMultiplatformAndroidComponentsExtension> {
+    onVariants { variant ->
+        variant.sources.jniLibs?.addGeneratedSourceDirectory(extractAndroidSqlite) { it.outputDirectory }
+    }
 }
-
-tasks.register<Sync>("android-x86-ExtractSqliteLib") {
-    val sqliteJar = configurations.getByName("sqliteExtract").first()
-    val file = zipTree(sqliteJar.absolutePath)
-        .matching { include("org/sqlite/native/Linux-Android/x86/libsqlitejdbc.so") }
-        .singleFile
-    from(file)
-    into("$projectDir/src/androidMain/jniLibs/x86")
+// Keep the documented native-build entry points, without copying duplicate .so
+// files into src/androidMain alongside the generated JNI directory.
+listOf("arm64", "armv7a", "x86_64", "x86").forEach { arch ->
+    tasks.register("android-$arch-ExtractSqliteLib") { dependsOn(extractAndroidSqlite) }
 }

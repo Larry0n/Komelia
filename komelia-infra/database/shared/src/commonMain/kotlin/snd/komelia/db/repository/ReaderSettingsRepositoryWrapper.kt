@@ -9,6 +9,7 @@ import snd.komelia.image.UpsamplingMode
 import snd.komelia.image.UpscaleMode
 import snd.komelia.settings.ImageReaderSettingsRepository
 import snd.komelia.settings.model.ContinuousReadingDirection
+import snd.komelia.settings.model.EInkRefreshMode
 import snd.komelia.settings.model.LayoutScaleType
 import snd.komelia.settings.model.PageDisplayLayout
 import snd.komelia.settings.model.PagedReadingDirection
@@ -89,6 +90,32 @@ class ReaderSettingsRepositoryWrapper(
 
     override suspend fun putContinuousReaderPageSpacing(spacing: Int) {
         wrapper.transform { it.copy(continuousPageSpacing = spacing) }
+    }
+
+    override fun getHardwareEInkRefresh(): Flow<Boolean> = wrapper.mapState { it.hardwareEInkRefresh }
+
+    override suspend fun putHardwareEInkRefresh(enabled: Boolean) {
+        wrapper.transform { it.copy(hardwareEInkRefresh = enabled) }
+    }
+
+    override fun getHardwareEInkRefreshMode(): Flow<EInkRefreshMode> = wrapper.mapState { it.hardwareEInkRefreshMode }
+
+    override suspend fun putHardwareEInkRefreshMode(mode: EInkRefreshMode) {
+        wrapper.transform { it.copy(hardwareEInkRefreshMode = mode) }
+    }
+
+    override fun getHardwareEInkRefreshDelay(): Flow<Long> =
+        wrapper.mapState { it.hardwareEInkRefreshDelay.coerceIn(100L, 1500L) }
+
+    override suspend fun putHardwareEInkRefreshDelay(delayMillis: Long) {
+        wrapper.transform { it.copy(hardwareEInkRefreshDelay = delayMillis.coerceIn(100L, 1500L)) }
+    }
+
+    override fun getHardwareEInkRefreshCount(): Flow<Int> =
+        wrapper.mapState { it.hardwareEInkRefreshCount.coerceIn(1, 5) }
+
+    override suspend fun putHardwareEInkRefreshCount(count: Int) {
+        wrapper.transform { it.copy(hardwareEInkRefreshCount = count.coerceIn(1, 5)) }
     }
 
     override fun getFlashOnPageChange(): Flow<Boolean> {

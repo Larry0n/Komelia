@@ -81,6 +81,7 @@ class PagedReaderState(
     val pageSpreads = MutableStateFlow<List<List<PageMetadata>>>(emptyList())
     val currentSpreadIndex = MutableStateFlow(0)
     val currentSpread: MutableStateFlow<PageSpread> = MutableStateFlow(PageSpread(emptyList()))
+    val imageUpdateTransformation = MutableStateFlow<ScreenScaleState.Transformation?>(null)
     val transitionPage: MutableStateFlow<TransitionPage?> = MutableStateFlow(null)
 
     val layout = MutableStateFlow(SINGLE_PAGE)
@@ -141,8 +142,9 @@ class PagedReaderState(
         readingDirection: PagedReadingDirection,
     ) {
         val maxPageSize = getMaxPageSize(spread.pages.map { it.metadata }, screenScaleState.areaSize.value)
-        val zoomFactor = screenScaleState.transformation.value.scale
-        val offset = screenScaleState.transformation.value.offset
+        val transform = screenScaleState.transformation.value
+        val zoomFactor = transform.scale
+        val offset = transform.offset
         val areaSize = screenScaleState.areaSize.value.toSize()
         val stretchToFit = readerState.imageStretchToFit.value
 
@@ -207,6 +209,7 @@ class PagedReaderState(
 
             }
         }
+        if (screenScaleState === this.screenScaleState) imageUpdateTransformation.value = transform
     }
 
     private fun onNewBookLoaded(bookState: BookState) {
@@ -329,6 +332,7 @@ class PagedReaderState(
 
         val newScale = completedPagesJob.scale
         screenScaleState.apply(newScale)
+        imageUpdateTransformation.value = newScale.transformation.value
     }
 
     data class PagesLoadJob(

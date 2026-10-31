@@ -118,14 +118,18 @@ fun CommonImageSettings(
 
 
         if (platform != PlatformType.DESKTOP) {
+            EInkHardwareSettings()
+            val hardware = LocalEInkHardwareSettings.current
+            val hardwareActive = hardware?.let { it.enabled && it.supported } == true
             SwitchWithLabel(
-                checked = flashEnabled,
+                checked = flashEnabled && !hardwareActive,
+                enabled = !hardwareActive,
                 onCheckedChange = onFlashEnabledChange,
                 label = { Text(stringResource(Res.string.reader_image_flash_on_page_change)) },
                 supportingText = { Text(stringResource(Res.string.reader_image_flash_on_page_change_desc)) },
                 contentPadding = PaddingValues(horizontal = 10.dp)
             )
-            AnimatedVisibility(flashEnabled) {
+            AnimatedVisibility(flashEnabled && !hardwareActive) {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(5.dp),
                     modifier = Modifier.padding(start = 10.dp)

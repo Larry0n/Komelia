@@ -6,6 +6,7 @@ import snd.komelia.image.ReduceKernel
 import snd.komelia.image.UpsamplingMode
 import snd.komelia.image.UpscaleMode
 import snd.komelia.settings.model.ContinuousReadingDirection
+import snd.komelia.settings.model.EInkRefreshMode
 import snd.komelia.settings.model.LayoutScaleType
 import snd.komelia.settings.model.PageDisplayLayout
 import snd.komelia.settings.model.PagedReadingDirection
@@ -39,6 +40,18 @@ interface ImageReaderSettingsRepository {
 
     fun getContinuousReaderPageSpacing(): Flow<Int>
     suspend fun putContinuousReaderPageSpacing(spacing: Int)
+
+    fun getHardwareEInkRefresh(): Flow<Boolean>
+    suspend fun putHardwareEInkRefresh(enabled: Boolean)
+
+    fun getHardwareEInkRefreshMode(): Flow<EInkRefreshMode>
+    suspend fun putHardwareEInkRefreshMode(mode: EInkRefreshMode)
+
+    fun getHardwareEInkRefreshDelay(): Flow<Long>
+    suspend fun putHardwareEInkRefreshDelay(delayMillis: Long)
+
+    fun getHardwareEInkRefreshCount(): Flow<Int>
+    suspend fun putHardwareEInkRefreshCount(count: Int)
 
     fun getFlashOnPageChange(): Flow<Boolean>
     suspend fun putFlashOnPageChange(flash: Boolean)

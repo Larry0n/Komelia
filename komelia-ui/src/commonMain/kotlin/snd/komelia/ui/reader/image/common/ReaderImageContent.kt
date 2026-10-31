@@ -13,13 +13,20 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.DpSize
 import snd.komelia.image.ReaderImage
@@ -27,8 +34,30 @@ import snd.komelia.image.ReaderImageResult
 
 @Composable
 fun ReaderImageContent(imageResult: ReaderImageResult?) {
+    val refresh = LocalEInkRefreshCoordinator.current
+    if (refresh == null) {
+        ReaderImageBody(imageResult, null)
+        return
+    }
+    val owner = remember { Any() }
+    var bounds by remember { mutableStateOf(Rect.Zero) }
+    DisposableEffect(refresh, imageResult) {
+        refresh.registerImage(owner, imageResult?.image)
+        refresh.onImagePositioned(owner, bounds)
+        onDispose { refresh.removeImage(owner) }
+    }
+    Box(Modifier.onGloballyPositioned {
+        bounds = it.boundsInWindow()
+        refresh.onImagePositioned(owner, bounds)
+    }) {
+        ReaderImageBody(imageResult, owner)
+    }
+}
+
+@Composable
+private fun ReaderImageBody(imageResult: ReaderImageResult?, owner: Any?) {
     when (imageResult) {
-        is ReaderImageResult.Success -> ImageContent(imageResult.image)
+        is ReaderImageResult.Success -> ImageContent(imageResult.image, owner)
         is ReaderImageResult.Error -> Text(
             "${imageResult.throwable::class.simpleName}: ${imageResult.throwable.message}",
             color = MaterialTheme.colorScheme.error
@@ -48,7 +77,7 @@ fun ReaderImageContent(imageResult: ReaderImageResult?) {
 }
 
 @Composable
-private fun ImageContent(image: ReaderImage) {
+private fun ImageContent(image: ReaderImage, owner: Any?) {
     // reimplement collectAsState and call remember with image key,
     // this avoids unnecessary recomposition and flickering caused by attempt to render old value on image change
     // without remember key, old painter value is remembered until new value is collected from flow
@@ -60,6 +89,7 @@ private fun ImageContent(image: ReaderImage) {
     val errorState = remember(image) { mutableStateOf(image.error.value) }
     LaunchedEffect(image) { image.error.collect { errorState.value = it } }
 
+    val refresh = LocalEInkRefreshCoordinator.current
     val error = errorState.value
     val painter = painterState.value
     if (error != null) {
@@ -95,6 +125,10 @@ private fun ImageContent(image: ReaderImage) {
         Image(
             painter = painter,
             contentDescription = null,
+            modifier = Modifier.drawWithContent {
+                drawContent()
+                if (owner != null) refresh?.onImageDrawn(owner, painter)
+            },
         )
     }
 }

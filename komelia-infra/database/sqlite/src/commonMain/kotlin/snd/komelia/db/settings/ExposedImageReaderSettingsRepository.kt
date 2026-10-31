@@ -14,6 +14,7 @@ import snd.komelia.image.ReduceKernel
 import snd.komelia.image.UpsamplingMode
 import snd.komelia.image.UpscaleMode
 import snd.komelia.settings.model.ContinuousReadingDirection
+import snd.komelia.settings.model.EInkRefreshMode
 import snd.komelia.settings.model.LayoutScaleType
 import snd.komelia.settings.model.PageDisplayLayout
 import snd.komelia.settings.model.PagedReadingDirection
@@ -39,6 +40,10 @@ class ExposedImageReaderSettingsRepository(database: Database) : ExposedReposito
                         continuousPadding = it[ImageReaderSettingsTable.continuousPadding],
                         continuousPageSpacing = it[ImageReaderSettingsTable.continuousPageSpacing],
                         cropBorders = it[ImageReaderSettingsTable.cropBorders],
+                        hardwareEInkRefresh = it[ImageReaderSettingsTable.hardwareEInkRefresh],
+                        hardwareEInkRefreshMode = EInkRefreshMode.valueOf(it[ImageReaderSettingsTable.hardwareEInkRefreshMode]),
+                        hardwareEInkRefreshDelay = it[ImageReaderSettingsTable.hardwareEInkRefreshDelay],
+                        hardwareEInkRefreshCount = it[ImageReaderSettingsTable.hardwareEInkRefreshCount],
                         flashOnPageChange = it[ImageReaderSettingsTable.flashOnPageChange],
                         flashDuration = it[ImageReaderSettingsTable.flashDuration],
                         flashEveryNPages = it[ImageReaderSettingsTable.flashEveryNPages],
@@ -71,6 +76,10 @@ class ExposedImageReaderSettingsRepository(database: Database) : ExposedReposito
                 it[continuousPadding] = settings.continuousPadding
                 it[continuousPageSpacing] = settings.continuousPageSpacing
                 it[cropBorders] = settings.cropBorders
+                it[hardwareEInkRefresh] = settings.hardwareEInkRefresh
+                it[hardwareEInkRefreshMode] = settings.hardwareEInkRefreshMode.name
+                it[hardwareEInkRefreshDelay] = settings.hardwareEInkRefreshDelay
+                it[hardwareEInkRefreshCount] = settings.hardwareEInkRefreshCount
                 it[flashOnPageChange] = settings.flashOnPageChange
                 it[flashDuration] = settings.flashDuration
                 it[flashEveryNPages] = settings.flashEveryNPages

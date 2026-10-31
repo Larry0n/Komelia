@@ -238,7 +238,9 @@ private fun pagedReaderOnKeyEvents(
     volumeKeysNavigation: Boolean,
 ): Boolean {
     if (event.type != KeyUp) {
-        return volumeKeysNavigation && (event.key == Key.VolumeUp || event.key == Key.VolumeDown)
+        // Keep D-pad focus here until KeyUp performs the page turn.
+        return event.key == Key.DirectionLeft || event.key == Key.DirectionRight ||
+            (volumeKeysNavigation && (event.key == Key.VolumeUp || event.key == Key.VolumeDown))
     }
 
     val previousPage = {

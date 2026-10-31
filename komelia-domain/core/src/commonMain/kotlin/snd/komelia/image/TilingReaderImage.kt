@@ -67,7 +67,18 @@ abstract class TilingReaderImage(
     private val animationScope = CoroutineScope(Dispatchers.Default.limitedParallelism(1) + SupervisorJob())
     protected val processingScope = CoroutineScope(Dispatchers.Default.limitedParallelism(1) + SupervisorJob())
 
-    private val jobFlow = MutableSharedFlow<UpdateRequest>(1, 0, BufferOverflow.DROP_OLDEST)
+    private val jobFlow = MutableSharedFlow<PendingUpdate>(1, 0, BufferOverflow.DROP_OLDEST)
+    private class PendingUpdate(val request: UpdateRequest)
+
+    @Volatile
+    private var completedUpdate: PendingUpdate? = null
+
+    final override val isReadyForRefresh: Boolean
+        get() = painter.value != null && error.value == null &&
+            frameData.value?.frames?.size == 1 &&
+            jobFlow.replayCache.lastOrNull() === completedUpdate
+
+    private var publishedFrameData: FrameData? = null
     private val frameData = MutableStateFlow<FrameData?>(null)
     protected val image = MutableStateFlow<KomeliaImage?>(null)
     protected val defaultFrameDelay = 100L
@@ -89,9 +100,11 @@ abstract class TilingReaderImage(
 
     init {
         jobFlow.conflate()
-            .onEach { request ->
+            .onEach { pending ->
                 try {
-                    doUpdate(request)
+                    doUpdate(pending.request)
+                    publishFrameData()
+                    completedUpdate = pending
                     this.error.value = null
                 } catch (e: Throwable) {
                     currentCoroutineContext().ensureActive()
@@ -125,21 +138,26 @@ abstract class TilingReaderImage(
 
         processingScope.launch { loadImage() }
 
-        frameData.onEach { data ->
-            when {
-                data == null -> this.painter.value = null
-                data.frames.size == 1 -> {
-                    this.painter.value = createTilePainter(
-                        tiles = data.frames.first().tiles,
-                        displaySize = data.displaySize,
-                        scaleFactor = data.scaleFactor
-                    )
-                }
+    }
 
-                else -> launchAnimation(data)
+    // Publish the painter before marking a request complete. An independent flow
+    // collector could otherwise leave a stale painter visible after processing ends.
+    private fun publishFrameData() {
+        val data = frameData.value
+        if (data === publishedFrameData) return
+        publishedFrameData = data
+        when {
+            data == null -> painter.value = null
+            data.frames.size == 1 -> {
+                animationScope.coroutineContext.cancelChildren()
+                painter.value = createTilePainter(
+                    tiles = data.frames.first().tiles,
+                    displaySize = data.displaySize,
+                    scaleFactor = data.scaleFactor
+                )
             }
-
-        }.launchIn(processingScope)
+            else -> launchAnimation(data)
+        }
     }
 
     private fun launchAnimation(data: FrameData) {
@@ -166,7 +184,7 @@ abstract class TilingReaderImage(
     protected suspend fun reloadLastRequest() {
         lastUpdateRequest?.let { lastRequest ->
             lastUsedScaleFactor = null
-            jobFlow.emit(lastRequest)
+            jobFlow.emit(PendingUpdate(lastRequest))
         }
     }
 
@@ -230,11 +248,11 @@ abstract class TilingReaderImage(
         visibleDisplaySize: IntRect,
     ) {
         jobFlow.tryEmit(
-            UpdateRequest(
+            PendingUpdate(UpdateRequest(
                 visibleDisplaySize = visibleDisplaySize,
                 zoomFactor = zoomFactor,
                 maxDisplaySize = maxDisplaySize
-            )
+            ))
         )
     }
 

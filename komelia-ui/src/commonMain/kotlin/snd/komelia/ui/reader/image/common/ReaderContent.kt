@@ -17,7 +17,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType.Companion.KeyUp
 import androidx.compose.ui.input.key.isAltPressed
@@ -27,6 +26,8 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import io.github.snd_r.komelia.ui.komelia_ui.generated.resources.Res
@@ -96,106 +97,109 @@ fun ReaderContent(
     }
     ReaderTypeNotification(commonReaderState, pagedReaderState, continuousReaderState, panelsReaderState)
 
-    val topLevelFocus = remember { FocusRequester() }
     val volumeKeysNavigation = commonReaderState.volumeKeysNavigation.collectAsState().value
-    var hasFocus by remember { mutableStateOf(false) }
 
     BackPressHandler { if (showSettingsMenu) showSettingsMenu = false else onExit() }
-    Box(
-        Modifier
-            .fillMaxSize()
-            .onSizeChanged {
-                screenScaleState.setAreaSize(it)
-            }
-            .focusable()
-            .focusRequester(topLevelFocus)
-            .onFocusChanged { hasFocus = it.hasFocus }
-            .onKeyEvent { event ->
-                if (event.type != KeyUp) return@onKeyEvent false
-
-                var consumed = true
-                when (event.key) {
-                    Key.M -> showSettingsMenu = !showSettingsMenu
-                    Key.Escape -> showSettingsMenu = false
-                    Key.H -> showHelpDialog = true
-                    Key.DirectionLeft -> if (event.isAltPressed) onExit() else consumed = false
-                    Key.U -> commonReaderState.onStretchToFitCycle()
-                    Key.C -> if (event.isAltPressed) commonReaderState.onColorCorrectionDisable() else consumed = false
-                    else -> consumed = false
-                }
-                consumed
-            }
+    ReaderEInkRefresh(
+        state = commonReaderState,
+        paged = pagedReaderState,
+        continuous = continuousReaderState,
+        panels = panelsReaderState,
+        scale = screenScaleState,
+        overlayVisible = showSettingsMenu || showHelpDialog,
     ) {
-        val areaSize = screenScaleState.areaSize.collectAsState()
-        if (areaSize.value == IntSize.Zero) {
-            LoadingMaxSizeIndicator()
-            return
+        val eInkRefresh = LocalEInkRefreshCoordinator.current
+        Box(
+            Modifier
+                .fillMaxSize()
+                .eInkTouchTracking(eInkRefresh)
+                .onSizeChanged {
+                    screenScaleState.setAreaSize(it)
+                }
+                .onKeyEvent { event ->
+                    if (event.type != KeyUp) return@onKeyEvent false
+
+                    var consumed = true
+                    when (event.key) {
+                        Key.M -> showSettingsMenu = !showSettingsMenu
+                        Key.Escape -> showSettingsMenu = false
+                        Key.H -> showHelpDialog = true
+                        Key.DirectionLeft -> if (event.isAltPressed) onExit() else consumed = false
+                        Key.U -> commonReaderState.onStretchToFitCycle()
+                        Key.C -> if (event.isAltPressed) commonReaderState.onColorCorrectionDisable() else consumed = false
+                        else -> consumed = false
+                    }
+                    consumed
+                }
+        ) {
+            val areaSize = screenScaleState.areaSize.collectAsState()
+            if (areaSize.value == IntSize.Zero) {
+                LoadingMaxSizeIndicator()
+                return@ReaderEInkRefresh
+            }
+
+            when (commonReaderState.readerType.collectAsState().value) {
+                PAGED -> {
+                    PagedReaderContent(
+                        showHelpDialog = showHelpDialog,
+                        onShowHelpDialogChange = { showHelpDialog = it },
+                        showSettingsMenu = showSettingsMenu,
+                        onShowSettingsMenuChange = { showSettingsMenu = it },
+                        screenScaleState = screenScaleState,
+                        pagedReaderState = pagedReaderState,
+                        volumeKeysNavigation = volumeKeysNavigation
+                    )
+                }
+
+                CONTINUOUS -> {
+                    ContinuousReaderContent(
+                        showHelpDialog = showHelpDialog,
+                        onShowHelpDialogChange = { showHelpDialog = it },
+                        showSettingsMenu = showSettingsMenu,
+                        onShowSettingsMenuChange = { showSettingsMenu = it },
+                        screenScaleState = screenScaleState,
+                        continuousReaderState = continuousReaderState,
+                        volumeKeysNavigation = volumeKeysNavigation
+                    )
+                }
+
+                PANELS -> {
+                    check(panelsReaderState != null)
+                    PanelsReaderContent(
+                        showHelpDialog = showHelpDialog,
+                        onShowHelpDialogChange = { showHelpDialog = it },
+                        showSettingsMenu = showSettingsMenu,
+                        onShowSettingsMenuChange = { showSettingsMenu = it },
+                        screenScaleState = screenScaleState,
+                        panelsReaderState = panelsReaderState,
+                        volumeKeysNavigation = volumeKeysNavigation
+                    )
+                }
+
+            }
+
+            SettingsOverlay(
+                show = showSettingsMenu,
+                commonReaderState = commonReaderState,
+                pagedReaderState = pagedReaderState,
+                continuousReaderState = continuousReaderState,
+                panelsReaderState = panelsReaderState,
+                onnxRuntimeSettingsState = onnxRuntimeSettingsState,
+                screenScaleState = screenScaleState,
+                isColorCorrectionsActive = isColorCorrectionActive,
+                onColorCorrectionClick = onColorCorrectionClick,
+                onBackPress = onExit,
+                ohShowHelpDialogChange = { showHelpDialog = it },
+            )
+
+            EInkFlashOverlay(
+                enabled = eInkRefresh == null && commonReaderState.flashOnPageChange.collectAsState().value,
+                pageChangeFlow = commonReaderState.pageChangeFlow,
+                flashEveryNPages = commonReaderState.flashEveryNPages.collectAsState().value,
+                flashWith = commonReaderState.flashWith.collectAsState().value,
+                flashDuration = commonReaderState.flashDuration.collectAsState().value
+            )
         }
-
-        when (commonReaderState.readerType.collectAsState().value) {
-            PAGED -> {
-                PagedReaderContent(
-                    showHelpDialog = showHelpDialog,
-                    onShowHelpDialogChange = { showHelpDialog = it },
-                    showSettingsMenu = showSettingsMenu,
-                    onShowSettingsMenuChange = { showSettingsMenu = it },
-                    screenScaleState = screenScaleState,
-                    pagedReaderState = pagedReaderState,
-                    volumeKeysNavigation = volumeKeysNavigation
-                )
-            }
-
-            CONTINUOUS -> {
-                ContinuousReaderContent(
-                    showHelpDialog = showHelpDialog,
-                    onShowHelpDialogChange = { showHelpDialog = it },
-                    showSettingsMenu = showSettingsMenu,
-                    onShowSettingsMenuChange = { showSettingsMenu = it },
-                    screenScaleState = screenScaleState,
-                    continuousReaderState = continuousReaderState,
-                    volumeKeysNavigation = volumeKeysNavigation
-                )
-            }
-
-            PANELS -> {
-                check(panelsReaderState != null)
-                PanelsReaderContent(
-                    showHelpDialog = showHelpDialog,
-                    onShowHelpDialogChange = { showHelpDialog = it },
-                    showSettingsMenu = showSettingsMenu,
-                    onShowSettingsMenuChange = { showSettingsMenu = it },
-                    screenScaleState = screenScaleState,
-                    panelsReaderState = panelsReaderState,
-                    volumeKeysNavigation = volumeKeysNavigation
-                )
-            }
-
-        }
-
-        SettingsOverlay(
-            show = showSettingsMenu,
-            commonReaderState = commonReaderState,
-            pagedReaderState = pagedReaderState,
-            continuousReaderState = continuousReaderState,
-            panelsReaderState = panelsReaderState,
-            onnxRuntimeSettingsState = onnxRuntimeSettingsState,
-            screenScaleState = screenScaleState,
-            isColorCorrectionsActive = isColorCorrectionActive,
-            onColorCorrectionClick = onColorCorrectionClick,
-            onBackPress = onExit,
-            ohShowHelpDialogChange = { showHelpDialog = it },
-        )
-
-        EInkFlashOverlay(
-            enabled = commonReaderState.flashOnPageChange.collectAsState().value,
-            pageChangeFlow = commonReaderState.pageChangeFlow,
-            flashEveryNPages = commonReaderState.flashEveryNPages.collectAsState().value,
-            flashWith = commonReaderState.flashWith.collectAsState().value,
-            flashDuration = commonReaderState.flashDuration.collectAsState().value
-        )
-    }
-    LaunchedEffect(hasFocus) {
-        if (!hasFocus) topLevelFocus.requestFocus()
     }
 }
 
@@ -211,6 +215,16 @@ fun ReaderControlsOverlay(
     content: @Composable () -> Unit,
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val readerFocus = remember { FocusRequester() }
+    val windowFocused = LocalWindowInfo.current.isWindowFocused
+    // This target is composed only once the reader has a nonzero layout. Request
+    // its focus on entry/return from a dialog, without stealing focus from menus.
+    LaunchedEffect(windowFocused, isSettingsMenuOpen) {
+        if (windowFocused && !isSettingsMenuOpen) {
+            withFrameNanos { }
+            readerFocus.requestFocus()
+        }
+    }
     val leftAction = {
         if (isSettingsMenuOpen) onSettingsMenuToggle()
         else if (readingDirection == LayoutDirection.Ltr) coroutineScope.launch { onPrevPageClick() }
@@ -226,6 +240,7 @@ fun ReaderControlsOverlay(
     Box(
         modifier = modifier
             .fillMaxSize()
+            .focusRequester(readerFocus)
             .focusable()
             .pointerInput(
                 contentAreaSize,

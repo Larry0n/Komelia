@@ -15,6 +15,9 @@ interface ReaderImage : AutoCloseable {
     val painter: StateFlow<Painter?>
     val error: StateFlow<Throwable?>
 
+    /** Latest requested tiles are published, with no animated frames still changing. */
+    val isReadyForRefresh: Boolean
+
     /**
      * request an asynchronous update.
      * Should drop requests if unable to process them fast enough while only processing the most recent request

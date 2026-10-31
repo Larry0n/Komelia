@@ -20,6 +20,10 @@ object ImageReaderSettingsTable : Table("ImageReaderSettings") {
     val loadThumbnailPreviews = bool("load_thumbnail_previews")
     val volumeKeysNavigation = bool("volume_keys_navigation")
 
+    val hardwareEInkRefresh = bool("hardware_eink_refresh")
+    val hardwareEInkRefreshMode = text("hardware_eink_refresh_mode")
+    val hardwareEInkRefreshDelay = long("hardware_eink_refresh_delay")
+    val hardwareEInkRefreshCount = integer("hardware_eink_refresh_count")
     val flashOnPageChange = bool("flash_on_page_change")
     val flashDuration = long("flash_duration")
     val flashEveryNPages = integer("flash_every_n_pages")

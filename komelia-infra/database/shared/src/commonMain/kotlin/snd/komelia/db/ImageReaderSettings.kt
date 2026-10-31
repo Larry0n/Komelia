@@ -6,6 +6,7 @@ import snd.komelia.image.ReduceKernel
 import snd.komelia.image.UpsamplingMode
 import snd.komelia.image.UpscaleMode
 import snd.komelia.settings.model.ContinuousReadingDirection
+import snd.komelia.settings.model.EInkRefreshMode
 import snd.komelia.settings.model.LayoutScaleType
 import snd.komelia.settings.model.PageDisplayLayout
 import snd.komelia.settings.model.PagedReadingDirection
@@ -25,6 +26,10 @@ data class ImageReaderSettings(
     val continuousPageSpacing: Int = 0,
     val cropBorders: Boolean = false,
 
+    val hardwareEInkRefresh: Boolean = false,
+    val hardwareEInkRefreshMode: EInkRefreshMode = EInkRefreshMode.MANUAL,
+    val hardwareEInkRefreshDelay: Long = 500L,
+    val hardwareEInkRefreshCount: Int = 1,
     val flashOnPageChange: Boolean = false,
     val flashDuration: Long = 100L,
     val flashEveryNPages: Int = 1,

@@ -53,6 +53,9 @@ val androidVariant = runCatching {
     )
 }.getOrDefault(AndroidVariant.STANDALONE)
 
+val androidAbis = providers.gradleProperty("komelia.android.abis")
+    .getOrElse("arm64-v8a,armeabi-v7a,x86_64").split(",").map(String::trim)
+
 android {
     namespace = "io.github.snd_r.komelia"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -74,6 +77,7 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = libs.versions.android.versionCode.get().toInt()
         versionName = libs.versions.app.version.get()
+        ndk { abiFilters += androidAbis }
 
         val enableSelfUpdates = when (androidVariant) {
             AndroidVariant.STANDALONE -> "true"
@@ -120,3 +124,29 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 }
+
+// Kotlin compilation succeeds even with no native libraries. Fail before producing
+// an APK that crashes on startup or cannot decode any images.
+val verifyAndroidRuntime = tasks.register("verifyAndroidRuntime") {
+    val nativeRoot = rootProject.layout.projectDirectory.dir("komelia-infra/jni/src/androidMain/jniLibs")
+    val readerRoot = rootProject.layout.projectDirectory.dir("komelia-ui/src/commonMain/composeResources/files")
+    inputs.dir(nativeRoot).optional()
+    inputs.dir(readerRoot).optional()
+    doLast {
+        val requiredLibraries = listOf(
+            "z", "ffi", "intl", "iconv", "glib-2.0", "gmodule-2.0", "gobject-2.0", "gio-2.0",
+            "lcms2", "exif", "de265", "dav1d", "expat", "hwy", "sharpyuv", "webp", "webpdecoder",
+            "webpdemux", "webpmux", "jpeg", "brotlicommon", "brotlidec", "brotlienc", "jxl_cms",
+            "jxl_threads", "jxl", "png", "tiff", "heif", "vips", "komelia_vips",
+            "komelia_android_bitmap", "omp", "onnxruntime", "komelia_onnxruntime"
+        )
+        val missing = androidAbis.flatMap { abi ->
+            requiredLibraries.map { "$abi/lib$it.so" }.filter { !nativeRoot.file(it).asFile.isFile }
+        } + listOf("komga.html", "ttsu.html").filter { !readerRoot.file(it).asFile.isFile }
+        check(missing.isEmpty()) {
+            "Android runtime files are missing: ${missing.joinToString()}. " +
+                "Build the native libraries and EPUB readers (README.md), or run scripts/Prepare-AndroidRuntime.ps1."
+        }
+    }
+}
+tasks.named("preBuild") { dependsOn(verifyAndroidRuntime) }

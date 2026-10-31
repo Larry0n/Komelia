@@ -88,6 +88,7 @@ class PanelsReaderState(
 
     val currentPageIndex = MutableStateFlow(PageIndex(0, 0, false))
     val currentPage: MutableStateFlow<PanelsPage?> = MutableStateFlow(null)
+    val imageUpdateTransformation = MutableStateFlow<ScreenScaleState.Transformation?>(null)
     val transitionPage: MutableStateFlow<TransitionPage?> = MutableStateFlow(null)
     val readingDirection = MutableStateFlow(LEFT_TO_RIGHT)
 
@@ -156,8 +157,9 @@ class PanelsReaderState(
         screenScaleState: ScreenScaleState,
     ) {
         val maxPageSize = screenScaleState.areaSize.value
-        val zoomFactor = screenScaleState.transformation.value.scale
-        val offset = screenScaleState.transformation.value.offset
+        val transform = screenScaleState.transformation.value
+        val zoomFactor = transform.scale
+        val offset = transform.offset
         val areaSize = screenScaleState.areaSize.value.toSize()
         val stretchToFit = readerState.imageStretchToFit.value
 
@@ -192,6 +194,7 @@ class PanelsReaderState(
                 maxDisplaySize = maxPageSize
             )
         }
+        if (screenScaleState === this.screenScaleState) imageUpdateTransformation.value = transform
     }
 
     private fun onNewBookLoaded(bookState: BookState) {
@@ -389,6 +392,7 @@ class PanelsReaderState(
         currentPage.value = sortedPanelsPage
         screenScaleState.enableOverscrollArea(true)
         screenScaleState.apply(scale)
+        imageUpdateTransformation.value = scale.transformation.value
     }
 
     private fun preloadImagesBetween(pageIndex: Int) {

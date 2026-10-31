@@ -26,6 +26,7 @@ import snd.komelia.komga.api.KomgaReadListApi
 import snd.komelia.komga.api.KomgaSeriesApi
 import snd.komelia.komga.api.model.KomeliaBook
 import snd.komelia.settings.ImageReaderSettingsRepository
+import snd.komelia.settings.model.EInkRefreshMode
 import snd.komelia.settings.model.ReaderFlashColor
 import snd.komelia.settings.model.ReaderType
 import snd.komelia.ui.BookSiblingsContext
@@ -75,6 +76,10 @@ class ReaderState(
     val availableUpsamplingModes = availableUpsamplingModes()
     val availableDownsamplingKernels = availableReduceKernels()
 
+    val hardwareEInkRefresh = MutableStateFlow(false)
+    val hardwareEInkRefreshMode = MutableStateFlow(EInkRefreshMode.MANUAL)
+    val hardwareEInkRefreshDelay = MutableStateFlow(500L)
+    val hardwareEInkRefreshCount = MutableStateFlow(1)
     val flashOnPageChange = MutableStateFlow(false)
     val flashDuration = MutableStateFlow(100L)
     val flashEveryNPages = MutableStateFlow(1)
@@ -90,6 +95,10 @@ class ReaderState(
 
         imageStretchToFit.value = readerSettingsRepository.getStretchToFit().first()
         cropBorders.value = readerSettingsRepository.getCropBorders().first()
+        hardwareEInkRefresh.value = readerSettingsRepository.getHardwareEInkRefresh().first()
+        hardwareEInkRefreshMode.value = readerSettingsRepository.getHardwareEInkRefreshMode().first()
+        hardwareEInkRefreshDelay.value = readerSettingsRepository.getHardwareEInkRefreshDelay().first()
+        hardwareEInkRefreshCount.value = readerSettingsRepository.getHardwareEInkRefreshCount().first()
         flashOnPageChange.value = readerSettingsRepository.getFlashOnPageChange().first()
         flashDuration.value = readerSettingsRepository.getFlashDuration().first()
         flashEveryNPages.value = readerSettingsRepository.getFlashEveryNPages().first()
@@ -262,6 +271,28 @@ class ReaderState(
     fun onCropBordersChange(trim: Boolean) {
         cropBorders.value = trim
         stateScope.launch { readerSettingsRepository.putCropBorders(trim) }
+    }
+
+    fun onHardwareEInkRefreshChange(enabled: Boolean) {
+        hardwareEInkRefresh.value = enabled
+        stateScope.launch { readerSettingsRepository.putHardwareEInkRefresh(enabled) }
+    }
+
+    fun onHardwareEInkRefreshModeChange(mode: EInkRefreshMode) {
+        hardwareEInkRefreshMode.value = mode
+        stateScope.launch { readerSettingsRepository.putHardwareEInkRefreshMode(mode) }
+    }
+
+    fun onHardwareEInkRefreshDelayChange(delayMillis: Long) {
+        val delay = delayMillis.coerceIn(100L, 1500L)
+        hardwareEInkRefreshDelay.value = delay
+        stateScope.launch { readerSettingsRepository.putHardwareEInkRefreshDelay(delay) }
+    }
+
+    fun onHardwareEInkRefreshCountChange(count: Int) {
+        val boundedCount = count.coerceIn(1, 5)
+        hardwareEInkRefreshCount.value = boundedCount
+        stateScope.launch { readerSettingsRepository.putHardwareEInkRefreshCount(boundedCount) }
     }
 
     fun onFlashEnabledChange(enabled: Boolean) {

@@ -218,7 +218,7 @@ class ContinuousReaderState(
             }
             .launchIn(stateScope)
 
-        snapshotFlow { lazyListState.firstVisibleItemScrollOffset }
+        snapshotFlow { lazyListState.layoutInfo.visibleItemsInfo.map { Triple(it.key, it.offset, it.size) } }
             .combine(screenScaleState.areaSize) { _, _ -> }
             .combine(screenScaleState.targetSize) { _, _ -> }
             .combine(sidePaddingFraction) { _, _ -> }
@@ -419,7 +419,29 @@ class ContinuousReaderState(
         return job
     }
 
+    private data class ImageUpdateViewport(
+        val scale: Float,
+        val areaSize: IntSize,
+        val items: List<Triple<Any, Int, Int>>,
+    )
+
+    private var lastImageUpdateViewport: ImageUpdateViewport? = null
+
+    private fun imageUpdateViewport() = ImageUpdateViewport(
+        screenScaleState.transformation.value.scale,
+        screenScaleState.areaSize.value,
+        lazyListState.layoutInfo.visibleItemsInfo.map { Triple(it.key, it.offset, it.size) },
+    )
+
+    fun areVisibleImageRequestsCurrent(): Boolean = lastImageUpdateViewport == imageUpdateViewport()
+
     private suspend fun updateVisibleImages() {
+        val viewport = imageUpdateViewport()
+        updateVisibleImagesInternal()
+        lastImageUpdateViewport = viewport
+    }
+
+    private suspend fun updateVisibleImagesInternal() {
         val visibleItems = lazyListState.layoutInfo.visibleItemsInfo
         if (visibleItems.isEmpty()) return
 
@@ -431,7 +453,7 @@ class ContinuousReaderState(
         val scale = screenScaleState.transformation.value.scale
         val firstItemOffset = lazyListState.firstVisibleItemScrollOffset
 
-        visibleImages.values.first()?.let { image ->
+        visibleImages.values.firstOrNull()?.let { image ->
             val firstImageSize = getImageDisplaySize(image)
 
             if (firstItem.key is PageMetadata) {
@@ -470,7 +492,7 @@ class ContinuousReaderState(
                 )
             }
         }
-        if (visibleImages.size == 1) return
+        if (visibleImages.size <= 1) return
 
         if (visibleImages.size > 2) {
             visibleImages.values.drop(1).dropLast(1).filterNotNull()
